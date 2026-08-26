@@ -1,0 +1,43 @@
+[project]
+name = "travel-opportunities-bot"
+version = "0.1.0"
+description = 'Telegram-бот "Путешествия и возможности"'
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "aiogram>=3.15,<4.0",
+    "pydantic>=2.10,<3.0",
+    "pydantic-settings>=2.7,<3.0",
+    "python-dotenv>=1.0,<2.0",
+    "google-api-python-client>=2.160,<3.0",
+    "google-auth>=2.37,<3.0",
+    "google-auth-oauthlib>=1.2,<2.0",
+    "structlog>=24.4,<26.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.24",
+    "ruff>=0.9",
+    "mypy>=1.14",
+]
+
+[project.scripts]
+bot = "app.main:main"
+
+[tool.ruff]
+target-version = "py313"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.13"
+strict = true
+plugins = ["pydantic.mypy"]

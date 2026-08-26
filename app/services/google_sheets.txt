@@ -1,0 +1,61 @@
+import os
+from datetime import datetime
+
+import gspread
+from dotenv import load_dotenv
+
+
+load_dotenv()
+
+
+GOOGLE_CREDENTIALS_FILE = os.getenv(
+    "GOOGLE_CREDENTIALS_FILE",
+    "credentials/service_account.json",
+)
+
+GOOGLE_SPREADSHEET_ID = os.getenv(
+    "GOOGLE_SPREADSHEET_ID",
+)
+
+
+def get_google_sheet():
+    """Подключение к Google Sheets."""
+
+    client = gspread.service_account(
+        filename=GOOGLE_CREDENTIALS_FILE
+    )
+
+    spreadsheet = client.open_by_key(
+        GOOGLE_SPREADSHEET_ID
+    )
+
+    return spreadsheet.sheet1
+
+
+def add_client(
+    name: str,
+    country: str,
+    interests: str,
+    source: str,
+    telegram_username: str,
+    telegram_id: int,
+):
+    """Добавляет клиента в Google Sheets."""
+
+    sheet = get_google_sheet()
+
+    sheet.append_row(
+        [
+            datetime.now().strftime(
+                "%d.%m.%Y %H:%M"
+            ),
+            "Новый контакт",
+            name,
+            country,
+            interests,
+            source,
+            telegram_username,
+            str(telegram_id),
+            "",
+        ]
+    )
