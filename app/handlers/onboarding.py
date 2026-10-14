@@ -1,3 +1,6 @@
+import asyncio
+import logging
+
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
 from aiogram.types import CallbackQuery, Message
@@ -30,6 +33,7 @@ from app.states.onboarding import (
 
 
 router = Router(name="onboarding")
+logger = logging.getLogger(__name__)
 
 
 # ==================================================
@@ -183,6 +187,14 @@ async def process_interest(
 
     data = await state.get_data()
 
+    if data.get("submission_complete"):
+        await callback.answer("Заявка уже отправлена.", show_alert=True)
+        return
+
+    if data.get("submission_in_progress"):
+        await callback.answer("Заявка уже обрабатывается.", show_alert=True)
+        return
+
     selected = list(
         data.get("interests", [])
     )
@@ -224,6 +236,14 @@ async def process_interests_done(
 ) -> None:
 
     data = await state.get_data()
+
+    if data.get("submission_complete"):
+        await callback.answer("Заявка уже отправлена.", show_alert=True)
+        return
+
+    if data.get("submission_in_progress"):
+        await callback.answer("Заявка уже обрабатывается.", show_alert=True)
+        return
 
     selected = data.get(
         "interests",
@@ -271,19 +291,41 @@ async def process_interests_done(
     # GOOGLE SHEETS
     # ==================================================
 
-    client = GoogleSheetsClient(
-        credentials_file=settings.google_credentials_file,
-        spreadsheet_id=settings.google_spreadsheet_id,
-    )
+    if not data.get("saved_to_sheets"):
+        await state.update_data(submission_in_progress=True)
+        client = GoogleSheetsClient(
+            credentials_file=settings.google_credentials_file,
+            spreadsheet_id=settings.google_spreadsheet_id,
+            credentials_json=(
+                settings.google_credentials_json.get_secret_value()
+                if settings.google_credentials_json
+                else None
+            ),
+        )
 
-    client.append_client(
-        name=data.get("name", ""),
-        country=data.get("country", ""),
-        interests=interest_text,
-        source=source,
-        telegram_username=telegram_username,
-        telegram_id=telegram_id,
-    )
+        try:
+            await asyncio.to_thread(
+                client.append_client,
+                name=data.get("name", ""),
+                country=data.get("country", ""),
+                interests=interest_text,
+                source=source,
+                telegram_username=telegram_username,
+                telegram_id=telegram_id,
+            )
+        except Exception as error:
+            logger.error(
+                "Could not save a registration to Google Sheets (%s)",
+                type(error).__name__,
+            )
+            await state.update_data(submission_in_progress=False)
+            await callback.message.answer(
+                "Не удалось сохранить ответы. Попробуй нажать «✅ Готово» ещё раз."
+            )
+            await callback.answer()
+            return
+
+        await state.update_data(saved_to_sheets=True)
 
     # ==================================================
     # УВЕДОМЛЕНИЕ ЖАННЕ
@@ -298,7 +340,7 @@ async def process_interests_done(
         )
 
     notification = (
-        "🔔 <b>Новый контакт из бота</b>\n\n"
+        "🔔 <b>Новый контакт из бота Путешествия и возможности</b>\n\n"
         f"<b>Имя:</b> {data.get('name', '')}\n"
         f"<b>Страна:</b> {data.get('country', '')}\n"
         f"<b>Интересы:</b>\n"
@@ -317,19 +359,49 @@ async def process_interests_done(
             f"</a>"
         )
 
-    await callback.bot.send_message(
-        chat_id=settings.zhanna_telegram_id,
-        text=notification,
-        parse_mode="HTML",
-    )
+    if not data.get("notification_sent"):
+        try:
+            await callback.bot.send_message(
+                chat_id=settings.zhanna_telegram_id,
+                text=notification,
+                parse_mode="HTML",
+            )
+        except Exception as error:
+            logger.error(
+                "Could not send the registration notification (%s)",
+                type(error).__name__,
+            )
+            await state.update_data(submission_in_progress=False)
+            await callback.message.answer(
+                "Ответы сохранены, но уведомление Жанне временно не отправилось. "
+                "Нажми «✅ Готово» ещё раз — повторю отправку без повторной записи."
+            )
+            await callback.answer()
+            return
+
+        await state.update_data(notification_sent=True)
 
     # ==================================================
     # СООБЩЕНИЕ КЛИЕНТУ
     # ==================================================
 
-    await callback.message.answer(
-        FINAL_MESSAGE,
-        reply_markup=get_contact_keyboard(),
+    try:
+        await callback.message.answer(
+            FINAL_MESSAGE,
+            reply_markup=get_contact_keyboard(),
+        )
+    except Exception as error:
+        logger.error(
+            "Could not send the final registration message (%s)",
+            type(error).__name__,
+        )
+        await state.update_data(submission_in_progress=False)
+        await callback.answer()
+        return
+
+    await state.update_data(
+        submission_in_progress=False,
+        submission_complete=True,
     )
 
     await callback.answer()

@@ -59,6 +59,11 @@ class Settings(BaseSettings):
         ),
     )
 
+    google_credentials_json: SecretStr | None = Field(
+        default=None,
+        description="JSON-ключ сервисного аккаунта из защищённой переменной окружения",
+    )
+
     google_spreadsheet_id: str = Field(
         default="",
         description=(

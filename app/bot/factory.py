@@ -1,7 +1,7 @@
 from aiogram import Bot, Dispatcher
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
-from aiogram.fsm.storage.memory import MemoryStorage
+from aiogram.fsm.storage.memory import MemoryStorage, SimpleEventIsolation
 
 from app.bot.setup import setup_dispatcher
 
@@ -16,6 +16,9 @@ def create_bot(token: str) -> Bot:
 
 def create_dispatcher() -> Dispatcher:
     """Создаёт и настраивает диспетчер aiogram."""
-    dispatcher = Dispatcher(storage=MemoryStorage())
+    dispatcher = Dispatcher(
+        storage=MemoryStorage(),
+        events_isolation=SimpleEventIsolation(),
+    )
     setup_dispatcher(dispatcher)
     return dispatcher
