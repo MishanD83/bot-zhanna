@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 
 from aiogram import F, Router
 from aiogram.fsm.context import FSMContext
@@ -293,12 +294,23 @@ async def process_interests_done(
 
     if not data.get("saved_to_sheets"):
         await state.update_data(submission_in_progress=True)
+        credentials_json = settings.google_credentials_json
+        json_value = credentials_json.get_secret_value() if credentials_json is not None else None
+        logger.info(
+            "Creating GoogleSheetsClient for onboarding: env_present=%s "
+            "settings_is_none=%s settings_empty=%s json_passed=%s json_length=%s",
+            "GOOGLE_CREDENTIALS_JSON" in os.environ,
+            credentials_json is None,
+            credentials_json is not None and not json_value,
+            json_value is not None,
+            len(json_value) if json_value is not None else None,
+        )
         client = GoogleSheetsClient(
             credentials_file=settings.google_credentials_file,
             spreadsheet_id=settings.google_spreadsheet_id,
             credentials_json=(
-                settings.google_credentials_json.get_secret_value()
-                if settings.google_credentials_json is not None
+                json_value
+                if credentials_json is not None
                 else None
             ),
         )

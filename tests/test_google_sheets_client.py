@@ -80,6 +80,19 @@ def test_service_reports_invalid_json_without_echoing_it() -> None:
     assert secret not in str(error.value)
 
 
+@pytest.mark.parametrize("value", ["", "   ", "not-json"])
+def test_empty_or_invalid_json_never_falls_back_to_file(value: str) -> None:
+    client = GoogleSheetsClient(Path("missing.json"), "spreadsheet-id", value)
+
+    with (
+        patch("app.services.google_sheets.client.Credentials.from_service_account_file") as from_file,
+        pytest.raises(ValueError, match="GOOGLE_CREDENTIALS_JSON"),
+    ):
+        _ = client.service
+
+    from_file.assert_not_called()
+
+
 def test_service_keeps_local_credentials_file_support() -> None:
     credentials_file = Path("credentials/service_account.json")
     credentials = Mock()

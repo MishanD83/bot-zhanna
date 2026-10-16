@@ -51,6 +51,10 @@ class GoogleSheetsClient:
 
         if self._service is None:
             if self._credentials_json is not None:
+                logger.info(
+                    "Preparing Google credentials: auth_method=environment_json json_length=%s",
+                    len(self._credentials_json),
+                )
                 try:
                     service_account_info = json.loads(self._credentials_json)
                 except (json.JSONDecodeError, TypeError) as error:
@@ -70,6 +74,11 @@ class GoogleSheetsClient:
                         "GOOGLE_CREDENTIALS_JSON is not a valid service-account credential."
                     ) from None
             elif self._credentials_file is not None:
+                logger.warning(
+                    "Preparing Google credentials: auth_method=local_file path=%s "
+                    "reason=credentials_json_not_passed",
+                    self._credentials_file,
+                )
                 try:
                     credentials = Credentials.from_service_account_file(
                         str(self._credentials_file),
