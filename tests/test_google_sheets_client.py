@@ -36,6 +36,36 @@ def test_service_uses_google_credentials_json() -> None:
     build.assert_called_once()
 
 
+def test_json_credentials_take_precedence_over_missing_local_file() -> None:
+    info = {"type": "service_account", "client_email": "bot@example.test"}
+    credentials = Mock()
+    missing_file = Path("credentials/service_account.json")
+
+    with (
+        patch(
+            "app.services.google_sheets.client.Credentials.from_service_account_info",
+            return_value=credentials,
+        ) as from_info,
+        patch(
+            "app.services.google_sheets.client.Credentials.from_service_account_file",
+        ) as from_file,
+        patch(
+            "app.services.google_sheets.client.build",
+            return_value="sheets-service",
+        ),
+    ):
+        client = GoogleSheetsClient(
+            credentials_file=missing_file,
+            spreadsheet_id="spreadsheet-id",
+            credentials_json=json.dumps(info),
+        )
+
+        assert client.service == "sheets-service"
+
+    from_info.assert_called_once()
+    from_file.assert_not_called()
+
+
 def test_service_reports_invalid_json_without_echoing_it() -> None:
     secret = "private-key-material"
     client = GoogleSheetsClient(

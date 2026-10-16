@@ -50,7 +50,7 @@ class GoogleSheetsClient:
         """Ленивая инициализация Google Sheets API."""
 
         if self._service is None:
-            if self._credentials_json:
+            if self._credentials_json is not None:
                 try:
                     service_account_info = json.loads(self._credentials_json)
                 except (json.JSONDecodeError, TypeError) as error:

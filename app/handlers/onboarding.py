@@ -298,7 +298,7 @@ async def process_interests_done(
             spreadsheet_id=settings.google_spreadsheet_id,
             credentials_json=(
                 settings.google_credentials_json.get_secret_value()
-                if settings.google_credentials_json
+                if settings.google_credentials_json is not None
                 else None
             ),
         )
